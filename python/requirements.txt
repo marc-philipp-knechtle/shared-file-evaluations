@@ -1,1 +1,2 @@
 -e .
+-e shared-file-format/python
