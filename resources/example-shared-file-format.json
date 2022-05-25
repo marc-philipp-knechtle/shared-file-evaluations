@@ -1,0 +1,38 @@
+{
+  "version": "docrec-2022-01-10",
+  "filename": "imaginary_file.png",
+  "alternate_files": {
+    "binary": "imaginary_file.bin.png"
+  },
+  "original_image_size": [
+    200,
+    100
+  ],
+  "content": [
+    {
+      "otype": "baseline",
+      "oid": 2,
+      "points": [ [ 10, 1 ], [ 10, 4 ], [ 10, 10 ], [ 10, 3 ] ],
+      "group": 1002
+    },
+    {
+      "otype": "linepoly",
+      "oid": 3,
+      "polygon": [ [ 10, 1 ], [ 10, 4 ], [ 10, 10 ], [ 10, 3 ], [ 10, 13 ], [ 10, 20 ], [ 10, 14 ], [ 10, 10 ] ],
+      "group": 1002
+    },
+    {
+      "otype": "text",
+      "oid": 4,
+      "text": "bar",
+      "group": 1002
+    },
+    {
+      "otype": "region",
+      "oid": 11,
+      "region_type": "text",
+      "region_subtype": "paragraph",
+      "contains": [ 2, 5, 8 ]
+    }
+  ]
+}
