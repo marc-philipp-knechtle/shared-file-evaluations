@@ -49,6 +49,18 @@ def intersection_over_union(ground_truth: Document, prediction: Document) -> flo
 
     return total_iou / elements_iou_considered
 
+
+def cell_intersection_over_union(cell_1: PolygonRegion, cell_2: PolygonRegion):
+    polygon_1: Polygon = Polygon(cell_1.polygon)
+    polygon_2: Polygon = Polygon(cell_2.polygon)
+
+    intersection = polygon_1.intersection(polygon_2)
+
+    if not intersection.area == polygon_1.area:
+        return intersection.area / (polygon_1.area + polygon_2.area - intersection.area)
+    else:
+        return 0
+
 # todo make version of this with single shared-file-format document where the ground truth is the index 0 element
 # the other elements will be predictions -> it returns a list of prediction - for each version in comparison to the
 # ground truth
