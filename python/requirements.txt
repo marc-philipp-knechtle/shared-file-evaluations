@@ -1,3 +1,4 @@
 -e .
 -e shared-file-format/python
 shapely
+loguru
