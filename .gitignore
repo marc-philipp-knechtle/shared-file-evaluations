@@ -1,2 +1,4 @@
 .venv
 evaluations.egg-info
+python/evaluations/__pycache__/
+
