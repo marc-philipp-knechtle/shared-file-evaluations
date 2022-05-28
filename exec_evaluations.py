@@ -50,7 +50,7 @@ def process_prediction_directory(prediction_directory: str, ground_truth_directo
     files_considered: int = 0
     intersection_over_union_sum: float = 0
 
-    for filepath in glob.glob(prediction_directory + "**"):
+    for filepath in glob.glob(os.path.join(prediction_directory, "*")):
 
         filename: str = os.path.basename(filepath)
         if filename.startswith('.'):
