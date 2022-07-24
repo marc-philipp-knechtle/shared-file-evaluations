@@ -1,4 +1,18 @@
 -e .
 -e shared-file-format/python
-shapely
-loguru
+shapely~=1.8.2
+loguru~=0.5.3
+
+pip~=22.1.2
+typing~=3.7.4.3
+keyring~=18.0.1
+pytest~=6.2.2
+numpy~=1.22.3
+Cython~=0.29.26
+setuptools~=51.1.2
+pytz~=2019.3
+cffi~=1.14.5
+scipy~=1.7.0
+matplotlib~=3.1.2
+argparse~=1.4.0
+docrecjson~=0.1
