@@ -7,15 +7,22 @@ import argparse
 import glob
 import json
 import os.path
+import sys
+
+from typing import List
 
 import python.evaluations.iou as iou
 
 from docrecjson import decoder
-from docrecjson.elements import Document
+from docrecjson.elements import Document, Revision, Table
 
 from loguru import logger
+from tqdm import tqdm
 
-# todo tqdm progress bar for large directory evaluations - it's hard to estimate the count of those files
+logger.remove()
+logger.add(sys.stderr, level="INFO")
+
+IOU: str = "iou"
 
 
 def _load_document(filepath: str) -> Document:
@@ -40,38 +47,70 @@ def get_ground_truth(filename: str, ground_truth_directory: str) -> Document:
             "Expected number of matching annotation file for image file to be 1, actual number was: " + str(
                 len(matching_gt)))
     else:
-        logger.info("Found matching annotation file for [" + filename + "]: [" + matching_gt[0] + "]")
+        logger.debug("Found matching annotation file for [" + filename + "]: [" + matching_gt[0] + "]")
 
     gt_annotation_path: str = matching_gt[0]
     return _load_document(gt_annotation_path)
 
 
-def process_prediction_directory(prediction_directory: str, ground_truth_directory: str):
+def _process_prediction_directory(prediction_directory: str, ground_truth_directory: str):
     files_considered: int = 0
-    intersection_over_union_sum: float = 0
+    # this list is intended for average iou computation. Each index represents the summed revision.
+    metrics: dict = {IOU: {}}
 
-    for filepath in glob.glob(os.path.join(prediction_directory, "*")):
+    for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
         filename: str = os.path.basename(filepath)
         if filename.startswith('.'):
             logger.info("Ignoring [" + str(filename) + "] because it's hidden.")
             continue
-
-        logger.info("[" + filename + "]")
+        logger.debug("[" + filename + "]")
 
         prediction: Document = _load_document(filepath)
         ground_truth: Document = get_ground_truth(filename, ground_truth_directory)
 
-        intersection_over_union: float = iou.intersection_over_union(ground_truth, prediction)
-        logger.info("Intersection over Union: " + str(intersection_over_union))
+        if prediction.revisions is not None:
+            for revision_index in range(len(prediction.revisions)):
+                _process_revision(ground_truth, metrics, prediction, revision_index)
 
-        intersection_over_union_sum += intersection_over_union
+            if len(prediction.revisions) != len(metrics[IOU]):
+                raise RuntimeError("Mismatching revision sum and total revision dictionary.")
+        else:
+            tables_prediction: List[Table] = [x for x in prediction.objects() if isinstance(x, Table)]
+            tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
+            iou_value: float = iou.intersection_over_union(tables_gt=tables_gt,
+                                                           tables_prediction=tables_prediction)
+            logger.debug("IoU  value: " + str(iou_value))
+            metrics["no revision"] = float(
+                metrics["no revision"]) + iou_value if metrics.get(
+                "no revision") is not None else iou_value
 
         files_considered += 1
 
     logger.info("Computed evaluations for [" + str(
         files_considered) + "] files in [" + prediction_directory + "] with gt: [" + ground_truth_directory + "]")
-    logger.info("Computed avg IoU: [" + str(intersection_over_union_sum/files_considered) + "]")
+    logger.info("Found results for multiple revisions in the prediction files: ")
+
+    logger.info("Found the following IoU values for the revisions:")
+    for key, value in metrics[IOU].items():
+        logger.info(key + ": " + str(float(value) / files_considered))
+
+
+def _process_revision(ground_truth: Document, metrics: dict, prediction: Document, revision_index: int) -> dict:
+    prediction.select_revision(revision_index)
+    revision: Revision = prediction.revisions[revision_index]
+    revision_name: str = 'revision:' + str(revision_index) + ':' + revision.name if revision.name is not None else ""
+    tables_prediction: List[Table] = [x for x in prediction.objects() if isinstance(x, Table)]
+    tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
+
+    iou_value: float = iou.intersection_over_union(tables_gt=tables_gt, tables_prediction=tables_prediction)
+
+    metrics[IOU][revision_name] = float(
+        metrics[IOU][revision_name]) + iou_value if metrics[IOU].get(
+        revision_name) is not None else iou_value
+    logger.debug("IoU value of " + 'revision:' + str(revision_index) + ':' + revision_name + ": " + str(iou_value))
+
+    return metrics
 
 
 def process_prediction_file(prediction_file: str, ground_truth_directory: str):
@@ -88,7 +127,9 @@ def process_prediction_file(prediction_file: str, ground_truth_directory: str):
 
 def main(prediction_file: str, prediction_directory: str, ground_truth_directory: str):
     if not prediction_directory == "":
-        process_prediction_directory(prediction_directory, ground_truth_directory)
+        logger.info("Prediction directory: " + prediction_directory)
+        logger.info("Ground Truth directory: " + ground_truth_directory)
+        _process_prediction_directory(prediction_directory, ground_truth_directory)
     elif not prediction_file == "":
         process_prediction_file(prediction_file, ground_truth_directory)
     else:
