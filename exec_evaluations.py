@@ -23,6 +23,11 @@ logger.remove()
 logger.add(sys.stderr, level="INFO")
 
 IOU: str = "iou"
+IOU_F1_60 = "iou_f1_60"
+IOU_F1_70 = "iou_f1_70"
+IOU_F1_80 = "iou_f1_80"
+IOU_F1_90 = "iou_f1_90"
+IOU_F1_THRESHOLDS = [IOU_F1_60, IOU_F1_70, IOU_F1_80, IOU_F1_90]
 
 
 def _load_document(filepath: str) -> Document:
@@ -56,7 +61,7 @@ def get_ground_truth(filename: str, ground_truth_directory: str) -> Document:
 def _process_prediction_directory(prediction_directory: str, ground_truth_directory: str):
     files_considered: int = 0
     # this list is intended for average iou computation. Each index represents the summed revision.
-    metrics: dict = {IOU: {}}
+    metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {}}
 
     for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
@@ -69,21 +74,7 @@ def _process_prediction_directory(prediction_directory: str, ground_truth_direct
         prediction: Document = _load_document(filepath)
         ground_truth: Document = get_ground_truth(filename, ground_truth_directory)
 
-        if prediction.revisions is not None:
-            for revision_index in range(len(prediction.revisions)):
-                _process_revision(ground_truth, metrics, prediction, revision_index)
-
-            if len(prediction.revisions) != len(metrics[IOU]):
-                raise RuntimeError("Mismatching revision sum and total revision dictionary.")
-        else:
-            tables_prediction: List[Table] = [x for x in prediction.objects() if isinstance(x, Table)]
-            tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
-            iou_value: float = iou.intersection_over_union(tables_gt=tables_gt,
-                                                           tables_prediction=tables_prediction)
-            logger.debug("IoU  value: " + str(iou_value))
-            metrics["no revision"] = float(
-                metrics["no revision"]) + iou_value if metrics.get(
-                "no revision") is not None else iou_value
+        metrics = _process_prediction_file(ground_truth, metrics, prediction)
 
         files_considered += 1
 
@@ -91,9 +82,39 @@ def _process_prediction_directory(prediction_directory: str, ground_truth_direct
         files_considered) + "] files in [" + prediction_directory + "] with gt: [" + ground_truth_directory + "]")
     logger.info("Found results for multiple revisions in the prediction files: ")
 
-    logger.info("Found the following IoU values for the revisions:")
+    output_metrics(files_considered, metrics)
+
+
+def output_metrics(files_considered: int, metrics: dict):
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following average IoU values for the revisions:")
     for key, value in metrics[IOU].items():
         logger.info(key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following IoU F1 Scores with their respective Thresholds.")
+    for threshold_key in IOU_F1_THRESHOLDS:
+        for key, value in metrics[threshold_key].items():
+            logger.info(str(threshold_key) + ": " + key + ": " + str(float(value) / files_considered))
+
+
+def _process_prediction_file(ground_truth: Document, metrics: dict, prediction: Document):
+    if prediction.revisions is not None:
+        for revision_index in range(len(prediction.revisions)):
+            _process_revision(ground_truth, metrics, prediction, revision_index)
+
+        if len(prediction.revisions) != len(metrics[IOU]):
+            raise RuntimeError("Mismatching revision sum and total revision dictionary.")
+    else:
+        tables_prediction: List[Table] = [x for x in prediction.objects() if isinstance(x, Table)]
+        tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
+        iou_value: float = iou.intersection_over_union(tables_gt=tables_gt,
+                                                       tables_prediction=tables_prediction)
+        logger.debug("IoU  value: " + str(iou_value))
+        metrics[IOU] = float(
+            metrics["no revision"]) + iou_value if metrics.get(
+            "no revision") is not None else iou_value
+
+    return metrics
 
 
 def _process_revision(ground_truth: Document, metrics: dict, prediction: Document, revision_index: int) -> dict:
@@ -104,10 +125,22 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
     tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
 
     iou_value: float = iou.intersection_over_union(tables_gt=tables_gt, tables_prediction=tables_prediction)
+    iou_f1_60: float = iou.iou_f1_score_with_threshold(0.6, tables_gt, tables_prediction)
+    iou_f1_70: float = iou.iou_f1_score_with_threshold(0.7, tables_gt, tables_prediction)
+    iou_f1_80: float = iou.iou_f1_score_with_threshold(0.8, tables_gt, tables_prediction)
+    iou_f1_90: float = iou.iou_f1_score_with_threshold(0.9, tables_gt, tables_prediction)
 
-    metrics[IOU][revision_name] = float(
-        metrics[IOU][revision_name]) + iou_value if metrics[IOU].get(
+    metrics[IOU][revision_name] = float(metrics[IOU][revision_name]) + iou_value if metrics[IOU].get(
         revision_name) is not None else iou_value
+    metrics[IOU_F1_60][revision_name] = float(metrics[IOU_F1_60][revision_name]) + iou_f1_60 if metrics[IOU_F1_60].get(
+        revision_name) is not None else iou_f1_60
+    metrics[IOU_F1_70][revision_name] = float(metrics[IOU_F1_70][revision_name]) + iou_f1_70 if metrics[IOU_F1_70].get(
+        revision_name) is not None else iou_f1_70
+    metrics[IOU_F1_80][revision_name] = float(metrics[IOU_F1_80][revision_name]) + iou_f1_80 if metrics[IOU_F1_80].get(
+        revision_name) is not None else iou_f1_80
+    metrics[IOU_F1_90][revision_name] = float(metrics[IOU_F1_90][revision_name]) + iou_f1_90 if metrics[IOU_F1_90].get(
+        revision_name) is not None else iou_f1_90
+
     logger.debug("IoU value of " + 'revision:' + str(revision_index) + ':' + revision_name + ": " + str(iou_value))
 
     return metrics
@@ -120,9 +153,9 @@ def process_prediction_file(prediction_file: str, ground_truth_directory: str):
     prediction: Document = _load_document(prediction_file)
     ground_truth: Document = get_ground_truth(filename, ground_truth_directory)
 
-    intersection_over_union: float = iou.intersection_over_union(ground_truth, prediction)
-
-    logger.info("Intersection over Union: " + str(intersection_over_union))
+    metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {}}
+    metrics = _process_prediction_file(ground_truth, metrics, prediction)
+    output_metrics(1, metrics)
 
 
 def main(prediction_file: str, prediction_directory: str, ground_truth_directory: str):

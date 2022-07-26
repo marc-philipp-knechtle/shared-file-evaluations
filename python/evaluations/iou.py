@@ -7,8 +7,50 @@ from loguru import logger
 from typing import List
 
 
-def iou_f1_score_with_threshold(thresholds: List[float], tables_gt: List):
-    pass
+def iou_f1_score_with_threshold(threshold: float, tables_gt: List[Table],
+                                tables_prediction: List[Table]) -> float:
+    # Go through each Ground Truth Cell -> find if IOU of this gt cell with some prediction cell is bigger than threshold
+    if len(tables_gt) > 1 or len(tables_prediction) > 1:
+        # todo resolve this issue
+        # create list of polygon regions for each table -> match them against each other?
+        # -> how to match both tables against each other?
+        # -> maybe with a certainity on how much they resemble?
+        raise RuntimeError("Specified table list of length longer than 1. This is currently not supported.")
+
+    if len(tables_prediction) == 0:
+        # no table was detected
+        return 0
+
+    table_gt: Table = tables_gt[0]
+    table_prediction: Table = tables_prediction[0]
+
+    true_positives: int = 0
+    false_negatives: int = 0
+    false_positives: int = 0
+    for cell in table_gt.cells:
+        iou: float = _iou_for_single_cell(cell, table_prediction.cells)
+        if iou >= threshold:
+            true_positives += 1
+        else:
+            false_negatives += 1
+
+    for cell in table_prediction.cells:
+        iou: float = _iou_for_single_cell(cell, table_gt.cells)
+        if iou < threshold:
+            false_positives += 1
+
+    if true_positives > 0 and len(table_gt.cells) > 0:
+        precision: float = true_positives / len(table_gt.cells)
+        logger.debug("precision: " + str(precision))
+        recall: float = true_positives / (true_positives + false_negatives)
+        logger.debug("recall: " + str(recall))
+        f1_score = 2 * ((precision * recall) / (precision + recall))
+    else:
+        precision: float = 0
+        recall: float = 0
+        f1_score: float = 0
+
+    return f1_score
 
 
 def intersection_over_union(doc_gt: Document = None, doc_prediction: Document = None,
@@ -42,6 +84,18 @@ def intersection_over_union(doc_gt: Document = None, doc_prediction: Document = 
         return _intersection_over_union_polygon_region(polygon_content_gt, polygon_content_prediction)
     else:
         raise RuntimeError("Wrong Arguments for intersection over union calculation. Please review the required args.")
+
+
+def _iou_for_single_cell(cell: Cell, cells_to_search: List[Cell]) -> float:
+    for search_cell in cells_to_search:
+        search_cell_area: Polygon = Polygon(search_cell.bounding_box.polygon)
+        cell_area: Polygon = Polygon(cell.bounding_box.polygon)
+
+        if search_cell_area.intersects(cell_area):
+            intersection = search_cell_area.intersection(cell_area)
+            return intersection.area / (search_cell_area.area + cell_area.area - intersection.area)
+
+    return 0
 
 
 def _intersection_over_union_polygon_region(polygon_content_gt: List[PolygonRegion],
