@@ -17,3 +17,4 @@ scipy~=1.7.0
 matplotlib~=3.1.2
 argparse~=1.4.0
 docrecjson~=0.1
+pillow
