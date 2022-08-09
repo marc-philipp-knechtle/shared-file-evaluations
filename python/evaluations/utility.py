@@ -44,6 +44,7 @@ def match_tables(tables_gt: List[Table], tables_prediction: List[Table]) -> Dict
         prediction_table_with_highest_intersection: Optional[Table] = None
         highest_intersection: float = 0
         for table_prediction in tables_prediction:
+            # todo remove table after if was matched to a gt table
             table_prediction_area: Polygon = Polygon(table_prediction.bounding_box.polygon)
             if not table_prediction_area.is_valid:
                 logger.warning("Getting invalid prediction table! Please review the order of the Polygon coordinates.")
