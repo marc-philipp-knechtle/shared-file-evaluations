@@ -1,5 +1,6 @@
 from docrecjson.elements import Document, PolygonRegion, Cell, Table
-from evaluations import utility
+import python.evaluations.utility as utility
+
 from shapely.geometry import Polygon
 from loguru import logger
 
