@@ -179,4 +179,4 @@ def fpa_f1_score(threshold: float, doc_gt: Document, revision_prediction: Revisi
     precision: float = fpa_precision(threshold, doc_gt, revision_prediction, image_filepath)
     recall: float = fpa_recall(threshold, doc_gt, revision_prediction, image_filepath)
 
-    return float(2 * ((precision * recall) / (precision + recall)))
+    return float(2 * ((precision * recall) / (precision + recall))) if precision + recall > 0 else 0
