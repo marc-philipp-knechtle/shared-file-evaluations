@@ -125,7 +125,7 @@ def fpa_precision(threshold: float, doc_gt: Document, revision_prediction: Revis
             if fpa < threshold:
                 false_positives += 1
 
-    return true_positives / (true_positives + false_positives)
+    return true_positives / (true_positives + false_positives) if true_positives + false_positives > 0 else 0
 
 
 def fpa_recall(threshold: float, doc_gt: Document, revision_prediction: Revision, image_filepath: str):
@@ -162,7 +162,7 @@ def fpa_recall(threshold: float, doc_gt: Document, revision_prediction: Revision
             else:
                 false_negatives += 1
 
-    return true_positives / (true_positives + false_negatives)
+    return true_positives / (true_positives + false_negatives) if true_positives + false_negatives > 0 else 0
 
 
 def fpa_f1_score(threshold: float, doc_gt: Document, revision_prediction: Revision, image_filepath: str) -> float:
