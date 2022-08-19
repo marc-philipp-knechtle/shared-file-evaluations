@@ -81,6 +81,7 @@ def intersection_over_union(doc_gt: Document = None, doc_prediction: Document = 
             polygon_content_prediction = [x.bounding_box for x in cells_prediction]
 
             iou_total_value += _intersection_over_union_polygon_region(polygon_content_gt, polygon_content_prediction)
+            total_tables_viewed += 1
 
         return iou_total_value / total_tables_viewed
     else:
