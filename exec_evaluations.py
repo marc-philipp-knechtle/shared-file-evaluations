@@ -31,6 +31,11 @@ IOU_F1_90 = "iou_f1_90"
 IOU_F1_THRESHOLDS = [IOU_F1_60, IOU_F1_70, IOU_F1_80, IOU_F1_90]
 
 FOREGROUND_PIXEL_ACCURACY: str = "foreground_pixel_accuracy"
+FPA_F1_60 = "fpa_f1_60"
+FPA_F1_70 = "fpa_f1_70"
+FPA_F1_80 = "fpa_f1_80"
+FPA_F1_90 = "fpa_f1_90"
+FPA_F1_THRESHOLDS = [FPA_F1_60, FPA_F1_70, FPA_F1_80, FPA_F1_90]
 
 
 def _output_metrics(files_considered: int, metrics: dict):
@@ -47,6 +52,11 @@ def _output_metrics(files_considered: int, metrics: dict):
     logger.info("Found the following Foreground Pixel Accuracy Scores:")
     for key, value in metrics[FOREGROUND_PIXEL_ACCURACY].items():
         logger.info(key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following FPA F1 Scores with their respective Thresholds.")
+    for threshold_key in FPA_F1_THRESHOLDS:
+        for key, value in metrics[threshold_key].items():
+            logger.info(str(threshold_key) + ": " + key + ": " + str(float(value) / files_considered))
 
 
 def _process_revision(ground_truth: Document, metrics: dict, prediction: Document, revision_index: int,
@@ -58,31 +68,38 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
     tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
 
     if image_directory is not None:
-        fpa = foreground_pixel_accuracy.foreground_pixel_accuracy(ground_truth, prediction.revisions[revision_index],
-                                                                  script_utilities.get_image_file(prediction.filename,
-                                                                                                  image_directory))
+        image_filepath: str = script_utilities.get_image_file(prediction.filename, image_directory)
+        fpa = foreground_pixel_accuracy.foreground_pixel_accuracy(ground_truth, revision, image_filepath)
+
+        fpa_f1_60: float = foreground_pixel_accuracy.fpa_f1_score(0.6, ground_truth, revision, image_filepath)
+        fpa_f1_70: float = foreground_pixel_accuracy.fpa_f1_score(0.7, ground_truth, revision, image_filepath)
+        fpa_f1_80: float = foreground_pixel_accuracy.fpa_f1_score(0.8, ground_truth, revision, image_filepath)
+        fpa_f1_90: float = foreground_pixel_accuracy.fpa_f1_score(0.9, ground_truth, revision, image_filepath)
+        fpa_f1_values: List[float] = [fpa_f1_60, fpa_f1_70, fpa_f1_80, fpa_f1_90]
+
         metrics[FOREGROUND_PIXEL_ACCURACY][revision_name] = float(
             metrics[FOREGROUND_PIXEL_ACCURACY][revision_name]) + fpa if metrics[FOREGROUND_PIXEL_ACCURACY].get(
             revision_name) is not None else fpa
 
+        for threshold_key, value in zip(FPA_F1_THRESHOLDS, fpa_f1_values):
+            metrics[threshold_key][revision_name] = \
+                float(metrics[threshold_key][revision_name]) + value if metrics[threshold_key].get(
+                    revision_name) is not None else value
+
     iou_value: float = iou.intersection_over_union(tables_gt=tables_gt, tables_prediction=tables_prediction)
+    metrics[IOU][revision_name] = float(metrics[IOU][revision_name]) + iou_value if metrics[IOU].get(
+        revision_name) is not None else iou_value
+
     iou_f1_60: float = iou.iou_f1_score_with_threshold(0.6, tables_gt, tables_prediction)
     iou_f1_70: float = iou.iou_f1_score_with_threshold(0.7, tables_gt, tables_prediction)
     iou_f1_80: float = iou.iou_f1_score_with_threshold(0.8, tables_gt, tables_prediction)
     iou_f1_90: float = iou.iou_f1_score_with_threshold(0.9, tables_gt, tables_prediction)
+    iou_f1_values: List[float] = [iou_f1_60, iou_f1_70, iou_f1_80, iou_f1_90]
 
-    metrics[IOU][revision_name] = float(metrics[IOU][revision_name]) + iou_value if metrics[IOU].get(
-        revision_name) is not None else iou_value
-    metrics[IOU_F1_60][revision_name] = float(metrics[IOU_F1_60][revision_name]) + iou_f1_60 if metrics[IOU_F1_60].get(
-        revision_name) is not None else iou_f1_60
-    metrics[IOU_F1_70][revision_name] = float(metrics[IOU_F1_70][revision_name]) + iou_f1_70 if metrics[IOU_F1_70].get(
-        revision_name) is not None else iou_f1_70
-    metrics[IOU_F1_80][revision_name] = float(metrics[IOU_F1_80][revision_name]) + iou_f1_80 if metrics[IOU_F1_80].get(
-        revision_name) is not None else iou_f1_80
-    metrics[IOU_F1_90][revision_name] = float(metrics[IOU_F1_90][revision_name]) + iou_f1_90 if metrics[IOU_F1_90].get(
-        revision_name) is not None else iou_f1_90
-
-    logger.debug("IoU value of " + 'revision:' + str(revision_index) + ':' + revision_name + ": " + str(iou_value))
+    for threshold_key, value in zip(IOU_F1_THRESHOLDS, iou_f1_values):
+        metrics[threshold_key][revision_name] = \
+            float(metrics[threshold_key][revision_name]) + value if metrics[threshold_key].get(
+                revision_name) is not None else value
 
     return metrics
 
@@ -112,7 +129,8 @@ def _handle_prediction_directory(prediction_directory: str, ground_truth_directo
                                  image_directory: Optional[str]):
     files_considered: int = 0
     # this list is intended for average iou computation. Each index represents the summed revision.
-    metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {}, FOREGROUND_PIXEL_ACCURACY: {}}
+    metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {}, FOREGROUND_PIXEL_ACCURACY: {},
+                     FPA_F1_60: {}, FPA_F1_70: {}, FPA_F1_80: {}, FPA_F1_90: {}}
 
     for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
