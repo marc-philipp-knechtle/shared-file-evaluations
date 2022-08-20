@@ -65,7 +65,7 @@ def _foreground_pixel_accuracy_for_single_cell(gt_cell: Cell, cells_to_search: L
             if point_area.intersects(prediction_cell_area):
                 prediction_pixels += 1
 
-    return prediction_pixels / gt_pixels
+    return prediction_pixels / gt_pixels if gt_pixels > 0 else 0
 
 
 def foreground_pixel_accuracy(doc_gt: Document, revision_prediction: Revision, image_filepath: str) -> float:
