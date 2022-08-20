@@ -1,5 +1,7 @@
 -e .
 -e shared-file-format/python
+-e docrecjson-utilities/python
+
 shapely~=1.8.2
 loguru~=0.5.3
 tqdm
