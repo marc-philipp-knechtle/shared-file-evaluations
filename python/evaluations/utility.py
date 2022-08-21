@@ -40,12 +40,12 @@ def match_tables(tables_gt: List[Table], tables_prediction: List[Table]) -> Dict
     table_gt: Table
     matched_tables: Dict[Table, Table] = {}
     for table_gt in tables_gt:
-        table_gt_area: Polygon = Polygon(table_gt.bounding_box.polygon)
+        table_gt_area: Polygon = Polygon(table_gt.get_table_coordinates())
         prediction_table_with_highest_intersection: Optional[Table] = None
         highest_intersection: float = 0
         for table_prediction in tables_prediction:
             # todo remove table after if was matched to a gt table
-            table_prediction_area: Polygon = Polygon(table_prediction.bounding_box.polygon)
+            table_prediction_area: Polygon = Polygon(table_prediction.get_table_coordinates())
             if not table_prediction_area.is_valid:
                 logger.warning("Getting invalid prediction table! Please review the order of the Polygon coordinates.")
                 logger.warning("Trying to resolve the invalid polygon: ")
