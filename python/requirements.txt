@@ -5,6 +5,7 @@
 shapely~=1.8.2
 loguru~=0.5.3
 tqdm
+nltk
 
 pip~=22.1.2
 typing~=3.7.4.3

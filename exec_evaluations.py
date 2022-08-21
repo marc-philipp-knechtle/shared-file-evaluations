@@ -12,6 +12,7 @@ from typing import List, Optional
 
 import python.evaluations.iou as iou
 import python.evaluations.foreground_pixel_accuracy as foreground_pixel_accuracy
+import python.evaluations.levenshtein_distance as ld
 
 from docrecjson.elements import Document, Revision, Table
 
@@ -37,6 +38,8 @@ FPA_F1_80 = "fpa_f1_80"
 FPA_F1_90 = "fpa_f1_90"
 FPA_F1_THRESHOLDS = [FPA_F1_60, FPA_F1_70, FPA_F1_80, FPA_F1_90]
 
+LEVENSHTEIN_DISTANCE: str = "levenshtein_distance"
+
 
 def _output_metrics(files_considered: int, metrics: dict):
     logger.info("-----------------------------------------------------------------------------------------------------")
@@ -57,6 +60,10 @@ def _output_metrics(files_considered: int, metrics: dict):
     for threshold_key in FPA_F1_THRESHOLDS:
         for key, value in metrics[threshold_key].items():
             logger.info(str(threshold_key) + ": " + key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following Levenshtein Distance Scores:")
+    for key, value in metrics[LEVENSHTEIN_DISTANCE].items():
+        logger.info(key + ": " + str(float(value) / files_considered))
 
 
 def _process_revision(ground_truth: Document, metrics: dict, prediction: Document, revision_index: int,
@@ -67,6 +74,7 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
     tables_prediction: List[Table] = [x for x in prediction.objects() if isinstance(x, Table)]
     tables_gt: List[Table] = [x for x in ground_truth.objects() if isinstance(x, Table)]
 
+    # add fpa metrics
     if image_directory is not None:
         image_filepath: str = script_utilities.get_image_file(prediction.filename, image_directory)
         fpa = foreground_pixel_accuracy.foreground_pixel_accuracy(ground_truth, revision, image_filepath)
@@ -86,6 +94,7 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
                 float(metrics[threshold_key][revision_name]) + value if metrics[threshold_key].get(
                     revision_name) is not None else value
 
+    # add iou metrics
     iou_value: float = iou.intersection_over_union(tables_gt=tables_gt, tables_prediction=tables_prediction)
     metrics[IOU][revision_name] = float(metrics[IOU][revision_name]) + iou_value if metrics[IOU].get(
         revision_name) is not None else iou_value
@@ -100,6 +109,12 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
         metrics[threshold_key][revision_name] = \
             float(metrics[threshold_key][revision_name]) + value if metrics[threshold_key].get(
                 revision_name) is not None else value
+
+    # add levenshtein metrics
+    levenshtein_distance: float = ld.levenshtein_distance(ground_truth, revision)
+    metrics[LEVENSHTEIN_DISTANCE][revision_name] = float(
+        metrics[LEVENSHTEIN_DISTANCE][revision_name]) + levenshtein_distance if metrics[LEVENSHTEIN_DISTANCE].get(
+        revision_name) is not None else levenshtein_distance
 
     return metrics
 
@@ -129,8 +144,9 @@ def _handle_prediction_directory(prediction_directory: str, ground_truth_directo
                                  image_directory: Optional[str]):
     files_considered: int = 0
     # this list is intended for average iou computation. Each index represents the summed revision.
-    metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {}, FOREGROUND_PIXEL_ACCURACY: {},
-                     FPA_F1_60: {}, FPA_F1_70: {}, FPA_F1_80: {}, FPA_F1_90: {}}
+    metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {},
+                     FOREGROUND_PIXEL_ACCURACY: {}, FPA_F1_60: {}, FPA_F1_70: {}, FPA_F1_80: {}, FPA_F1_90: {},
+                     LEVENSHTEIN_DISTANCE: {}}
 
     for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
