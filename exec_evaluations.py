@@ -39,6 +39,11 @@ FPA_F1_90 = "fpa_f1_90"
 FPA_F1_THRESHOLDS = [FPA_F1_60, FPA_F1_70, FPA_F1_80, FPA_F1_90]
 
 LEVENSHTEIN_DISTANCE: str = "levenshtein_distance"
+LD_F1_60 = "ld_f1_60"
+LD_F1_70 = "ld_f1_70"
+LD_F1_80 = "ld_f1_80"
+LD_F1_90 = "ld_f1_90"
+LD_F1_THRESHOLDS = [LD_F1_60, LD_F1_70, LD_F1_80, LD_F1_90]
 
 
 def _output_metrics(files_considered: int, metrics: dict):
@@ -64,6 +69,11 @@ def _output_metrics(files_considered: int, metrics: dict):
     logger.info("Found the following Levenshtein Distance Scores:")
     for key, value in metrics[LEVENSHTEIN_DISTANCE].items():
         logger.info(key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following Levenshtein Distance F1 Scores")
+    for threshold_key in LD_F1_THRESHOLDS:
+        for key, value in metrics[threshold_key].items():
+            logger.info(str(threshold_key) + ": " + key + ": " + str(float(value) / files_considered))
 
 
 def _process_revision(ground_truth: Document, metrics: dict, prediction: Document, revision_index: int,
@@ -116,6 +126,17 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
         metrics[LEVENSHTEIN_DISTANCE][revision_name]) + levenshtein_distance if metrics[LEVENSHTEIN_DISTANCE].get(
         revision_name) is not None else levenshtein_distance
 
+    ld_f1_60: float = ld.ld_f1(0.6, ground_truth, revision)
+    ld_f1_70: float = ld.ld_f1(0.7, ground_truth, revision)
+    ld_f1_80: float = ld.ld_f1(0.8, ground_truth, revision)
+    ld_f1_90: float = ld.ld_f1(0.9, ground_truth, revision)
+    ld_f1_values: List[float] = [ld_f1_60, ld_f1_70, ld_f1_80, ld_f1_90]
+
+    for threshold_key, value in zip(LD_F1_THRESHOLDS, ld_f1_values):
+        metrics[threshold_key][revision_name] = \
+            float(metrics[threshold_key][revision_name]) + value if metrics[threshold_key].get(
+                revision_name) is not None else value
+
     return metrics
 
 
@@ -146,7 +167,7 @@ def _handle_prediction_directory(prediction_directory: str, ground_truth_directo
     # this list is intended for average iou computation. Each index represents the summed revision.
     metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {},
                      FOREGROUND_PIXEL_ACCURACY: {}, FPA_F1_60: {}, FPA_F1_70: {}, FPA_F1_80: {}, FPA_F1_90: {},
-                     LEVENSHTEIN_DISTANCE: {}}
+                     LEVENSHTEIN_DISTANCE: {}, LD_F1_60: {}, LD_F1_70: {}, LD_F1_80: {}, LD_F1_90: {}}
 
     for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
