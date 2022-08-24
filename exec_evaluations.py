@@ -13,6 +13,7 @@ from typing import List, Optional
 import python.evaluations.iou as iou
 import python.evaluations.foreground_pixel_accuracy as foreground_pixel_accuracy
 import python.evaluations.levenshtein_distance as ld
+import python.evaluations.correct_tsr_share as tsr_share
 
 from docrecjson.elements import Document, Revision, Table
 
@@ -45,6 +46,8 @@ LD_F1_80 = "ld_f1_80"
 LD_F1_90 = "ld_f1_90"
 LD_F1_THRESHOLDS = [LD_F1_60, LD_F1_70, LD_F1_80, LD_F1_90]
 
+CORRECT_TSR_SHARE: str = "correct_tsr_share"
+
 
 def _output_metrics(files_considered: int, metrics: dict):
     logger.info("-----------------------------------------------------------------------------------------------------")
@@ -74,6 +77,10 @@ def _output_metrics(files_considered: int, metrics: dict):
     for threshold_key in LD_F1_THRESHOLDS:
         for key, value in metrics[threshold_key].items():
             logger.info(str(threshold_key) + ": " + key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following Correct TSR share values:")
+    for key, value in metrics[CORRECT_TSR_SHARE].items():
+        logger.info(key + ": " + str(float(value) / files_considered))
 
 
 def _process_revision(ground_truth: Document, metrics: dict, prediction: Document, revision_index: int,
@@ -137,6 +144,12 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
             float(metrics[threshold_key][revision_name]) + value if metrics[threshold_key].get(
                 revision_name) is not None else value
 
+    # add correct tsr share metrics
+    correct_tsr_share: float = tsr_share.correct_tsr_share(ground_truth, revision)
+    metrics[CORRECT_TSR_SHARE][revision_name] = \
+        float(metrics[CORRECT_TSR_SHARE][revision_name] + correct_tsr_share) if metrics[CORRECT_TSR_SHARE].get(
+            revision_name) is not None else correct_tsr_share
+
     return metrics
 
 
@@ -167,7 +180,8 @@ def _handle_prediction_directory(prediction_directory: str, ground_truth_directo
     # this list is intended for average iou computation. Each index represents the summed revision.
     metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {},
                      FOREGROUND_PIXEL_ACCURACY: {}, FPA_F1_60: {}, FPA_F1_70: {}, FPA_F1_80: {}, FPA_F1_90: {},
-                     LEVENSHTEIN_DISTANCE: {}, LD_F1_60: {}, LD_F1_70: {}, LD_F1_80: {}, LD_F1_90: {}}
+                     LEVENSHTEIN_DISTANCE: {}, LD_F1_60: {}, LD_F1_70: {}, LD_F1_80: {}, LD_F1_90: {},
+                     CORRECT_TSR_SHARE: {}}
 
     for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
