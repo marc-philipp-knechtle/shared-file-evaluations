@@ -19,6 +19,8 @@ def iou_f1_score_with_threshold(threshold: float, tables_gt: List[Table],
     # -> maybe with a certainity on how much they resemble?
     # raise RuntimeError("Specified table list of length longer than 1. This is currently not supported.")
 
+    # todo add table matching
+
     if len(tables_prediction) == 0:
         # no table was detected
         return 0
@@ -30,7 +32,7 @@ def iou_f1_score_with_threshold(threshold: float, tables_gt: List[Table],
     false_negatives: int = 0
     false_positives: int = 0
     for cell in table_gt.cells:
-        iogt: float = _iogt_for_single_cell(cell, table_prediction.cells)
+        iogt: float = iogt_for_single_cell(cell, table_prediction.cells)
         if iogt >= threshold:
             true_positives += 1
         else:
@@ -100,7 +102,13 @@ def _iou_for_single_cell(cell: Cell, cells_to_search: List[Cell]) -> float:
     return 0
 
 
-def _iogt_for_single_cell(cell: Cell, cells_to_search: List[Cell]) -> float:
+def iogt_for_single_cell(cell: Cell, cells_to_search: List[Cell]) -> float:
+    """
+    computes the shared area of the cell and the matching cell from cells_to_search
+    :param cell: the cell for which the iogt is to be calculated
+    :param cells_to_search: the possible cells that intersect the cell
+    :return: the interseaction over the cell parameter
+    """
     for search_cell in cells_to_search:
         search_cell_area: Polygon = Polygon(search_cell.bounding_box.polygon)
         cell_area: Polygon = Polygon(cell.bounding_box.polygon)
