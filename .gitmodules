@@ -1,6 +1,3 @@
-[submodule "python/docrecjson-utilities"]
-	path = python/docrecjson-utilities
-	url = git@gitlab2.informatik.uni-wuerzburg.de:s372505/docrecjson-utilities.git
 [submodule "shared-file-format"]
 	path = shared-file-format
 	url = git@gitlab2.informatik.uni-wuerzburg.de:document-recognition/shared-file-format.git
