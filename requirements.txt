@@ -1,6 +1,6 @@
--e .
+-e python
 -e shared-file-format/python
--e docrecjson-utilities/python
+-e docrecjson-utilities
 
 shapely~=1.8.2
 loguru~=0.5.3
