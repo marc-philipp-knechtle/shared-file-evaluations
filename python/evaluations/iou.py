@@ -31,25 +31,25 @@ def iou_f1_score_with_threshold(threshold: float, tables_gt: List[Table],
     table_gt: Table = tables_gt[0]
     table_prediction: Table = tables_prediction[0]
 
-    true_positives: int = 0
-    false_negatives: int = 0
-    false_positives: int = 0
+    true_positives: int = 0  # = cells from prediction with matching gt cell with iou > threshold
+    false_negatives: int = 0  # = each cell from gt which did not found a prediction cell with iou > threshold
+    false_positives: int = 0  # = cells from prediction with matching gt cell with iou < threshold
     for cell in table_gt.cells:
-        iogt: float = iogt_for_single_cell(cell, table_prediction.cells)
-        if iogt >= threshold:
-            true_positives += 1
-        else:
+        iou: float = _iou_for_single_cell(cell, table_prediction.cells)
+        if iou < threshold:
             false_negatives += 1
 
     for cell in table_prediction.cells:
         iou: float = _iou_for_single_cell(cell, table_gt.cells)
-        if iou < threshold:
+        if iou >= threshold:
+            true_positives += 1
+        else:
             false_positives += 1
 
     if true_positives > 0 and len(table_gt.cells) > 0:
-        precision: float = true_positives / len(table_gt.cells)
+        precision: float = true_positives / (true_positives + false_positives)
         logger.debug("precision: " + str(precision))
-        recall: float = true_positives / (true_positives + false_negatives)
+        recall: float = true_positives / (true_positives + false_positives)
         logger.debug("recall: " + str(recall))
         f1_score = 2 * ((precision * recall) / (precision + recall))
     else:
