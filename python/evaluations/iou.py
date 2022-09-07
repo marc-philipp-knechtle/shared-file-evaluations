@@ -130,6 +130,13 @@ def iogt_for_single_cell(cell: Cell, cells_to_search: List[Cell]) -> float:
 
 
 def iogt_polygon(cell: shapely.Polygon, cells_to_search: List[shapely.Polygon]):
+    """
+    returns the iogt for the first cell that intersects the cell in cells_to_search
+    returns how big the intersection is compared to the cell area
+    :param cell: cell where the intersection is computed on (area = denominator)
+    :param cells_to_search: list of cells possibly intersecting this cell
+    :return: intersection area / cell area
+    """
     for search_cell in cells_to_search:
         if search_cell.intersects(cell):
             try:
