@@ -2,6 +2,9 @@ from docrecjson.elements import Document, PolygonRegion, Cell, Table
 from evaluations import utility
 
 from shapely.geometry import Polygon
+from shapely.errors import TopologicalError
+import shapely.geometry as shapely
+from shapely.validation import make_valid
 from loguru import logger
 
 # todo check issues with shapely-speed ->
@@ -114,9 +117,29 @@ def iogt_for_single_cell(cell: Cell, cells_to_search: List[Cell]) -> float:
         cell_area: Polygon = Polygon(cell.bounding_box.polygon)
 
         if search_cell_area.intersects(cell_area):
-            intersection = search_cell_area.intersection(cell_area)
+            try:
+                intersection = search_cell_area.intersection(cell_area)
+            except TopologicalError:
+                logger.debug("Topological Error! Trying to recover the original coordinates.")
+                search_cell_area = make_valid(search_cell_area)
+                cell_area = make_valid(cell_area)
+                intersection = search_cell_area.intersection(cell_area)
             return intersection.area / cell_area.area
 
+    return 0
+
+
+def iogt_polygon(cell: shapely.Polygon, cells_to_search: List[shapely.Polygon]):
+    for search_cell in cells_to_search:
+        if search_cell.intersects(cell):
+            try:
+                intersection = search_cell.intersection(cell)
+            except TopologicalError:
+                logger.warning("Forced to perform shapely valid process on polygon.")
+                search_cell_area = make_valid(search_cell)
+                cell_area = make_valid(cell)
+                intersection = search_cell_area.intersection(cell_area)
+            return intersection.area / cell.area
     return 0
 
 
