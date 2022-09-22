@@ -14,6 +14,8 @@ import python.evaluations.iou as iou
 import python.evaluations.foreground_pixel_accuracy as foreground_pixel_accuracy
 import python.evaluations.levenshtein_distance as ld
 import python.evaluations.correct_tsr_share as tsr_share
+import python.evaluations.completeness as completeness
+import python.evaluations.purity as purity
 
 from docrecjson.elements import Document, Revision, Table
 
@@ -48,6 +50,10 @@ LD_F1_THRESHOLDS = [LD_F1_60, LD_F1_70, LD_F1_80, LD_F1_90]
 
 CORRECT_TSR_SHARE: str = "correct_tsr_share"
 
+COMPLETENESS: str = "completeness"
+
+PURITY: str = "purity"
+
 
 def _output_metrics(files_considered: int, metrics: dict):
     logger.info("-----------------------------------------------------------------------------------------------------")
@@ -80,6 +86,14 @@ def _output_metrics(files_considered: int, metrics: dict):
     logger.info("-----------------------------------------------------------------------------------------------------")
     logger.info("Found the following Correct TSR share values:")
     for key, value in metrics[CORRECT_TSR_SHARE].items():
+        logger.info(key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following completeness values:")
+    for key, value in metrics[COMPLETENESS].items():
+        logger.info(key + ": " + str(float(value) / files_considered))
+    logger.info("-----------------------------------------------------------------------------------------------------")
+    logger.info("Found the following purity values:")
+    for key, value in metrics[PURITY].items():
         logger.info(key + ": " + str(float(value) / files_considered))
 
 
@@ -150,6 +164,18 @@ def _process_revision(ground_truth: Document, metrics: dict, prediction: Documen
         float(metrics[CORRECT_TSR_SHARE][revision_name] + correct_tsr_share) if metrics[CORRECT_TSR_SHARE].get(
             revision_name) is not None else correct_tsr_share
 
+    # add completeness metric
+    completeness_value: float = completeness.completeness(ground_truth, revision)
+    metrics[COMPLETENESS][revision_name] = \
+        float(metrics[COMPLETENESS][revision_name] + completeness_value) if metrics[COMPLETENESS].get(
+            revision_name) is not None else completeness_value
+
+    # add purity metric
+    purity_value: float = purity.purity(ground_truth, revision)
+    metrics[PURITY][revision_name] = \
+        float(metrics[PURITY][revision_name]) + purity_value if metrics[PURITY].get(
+            revision_name) is not None else purity_value
+
     return metrics
 
 
@@ -181,7 +207,9 @@ def _handle_prediction_directory(prediction_directory: str, ground_truth_directo
     metrics: dict = {IOU: {}, IOU_F1_60: {}, IOU_F1_70: {}, IOU_F1_80: {}, IOU_F1_90: {},
                      FOREGROUND_PIXEL_ACCURACY: {}, FPA_F1_60: {}, FPA_F1_70: {}, FPA_F1_80: {}, FPA_F1_90: {},
                      LEVENSHTEIN_DISTANCE: {}, LD_F1_60: {}, LD_F1_70: {}, LD_F1_80: {}, LD_F1_90: {},
-                     CORRECT_TSR_SHARE: {}}
+                     CORRECT_TSR_SHARE: {},
+                     COMPLETENESS: {},
+                     PURITY: {}}
 
     for filepath in tqdm(glob.glob(os.path.join(prediction_directory, "*"))):
 
